@@ -13,7 +13,7 @@
 // --- CONFIGURATION ---
 constexpr float DEADZONE = 0.05f;          // 5% threshold to start stroke
 constexpr float PRESSURE_CURVE = 1.2f;     // >1.0 = softer light strokes, <1.0 = faster ramp
-constexpr int POLL_INTERVAL_MS = 1;        // ~250Hz polling rate
+constexpr int POLL_INTERVAL_MS = 1;        // 1000Hz polling rate
 constexpr int TOGGLE_HOTKEY_VK = VK_F8;    // Activation hotkey (default: F8)
 
 // --- ACTIVATION MODES ---
@@ -41,14 +41,14 @@ constexpr UINT_PTR TIMER_POLL_ID = 1;
 // --- GLOBAL STATE ---
 HSYNTHETICPOINTERDEVICE g_penDevice = nullptr;
 NOTIFYICONDATAW g_nid = {};
-ActivationMode g_actMode = ActivationMode::TogglePress;
-bool g_toggleState = true;
+ActivationMode g_actMode = ActivationMode::HoldToActivate;
+bool g_toggleState = false;
 bool g_isPenDown = false;
 bool g_keyWasDown = false;
 std::wstring g_lastTip;
 
-UINT g_joyId = 0;
-int g_axisIndex = 2;        // 0=X, 1=Y, 2=Z, 3=R, 4=U, 5=V
+UINT g_joyId = 1;
+int g_axisIndex = 4;        // 0=X, 1=Y, 2=Z, 3=R, 4=U, 5=V
 bool g_centerRest = false;
 
 const wchar_t* AXIS_NAMES[] = { L"X Axis", L"Y Axis", L"Z Axis", L"R Axis (Rz)", L"U Axis (Rx)", L"V Axis (Ry)" };
@@ -157,10 +157,10 @@ void ReleasePenIfDown() {
 
         InjectSyntheticPointerInput(g_penDevice, &pti, 1);
 
-        // Tear down the synthetic pen device immediately so Windows drops its ~500ms
-        // digitizer-over-mouse suppression lock and restores mouse X/Y movement instantly.
+        // Cycle the device: destroy to drop the ~500ms mouse lock, 
+        // then immediately recreate so Windows/CSP still detects a pen device.
         DestroySyntheticPointerDevice(g_penDevice);
-        g_penDevice = nullptr;
+        g_penDevice = CreateSyntheticPointerDevice(PT_PEN, 1, POINTER_FEEDBACK_NONE);
     }
 
     g_isPenDown = false;
